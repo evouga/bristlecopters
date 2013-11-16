@@ -2,381 +2,359 @@
 #include <iomanip>
 #include "controller.h"
 #include <Eigen/Dense>
+#include <Eigen/Core>
 #include "newton.h"
 
 using namespace std;
 using namespace Eigen;
 using namespace OpenMesh;
 
-void Mesh::elasticEnergy(const VectorXd &q,
-                         const VectorXd &g,
-                         double &energyB,
-                         double &energyS,
-                         VectorXd &gradq,
-                         Eigen::SparseMatrix<double> &hessq,
-                         Eigen::SparseMatrix<double> &gradggradq,
-                         int derivativesRequested) const
+double Mesh::cotanWeight(int edgeid, const VectorXd &q)
 {
-    assert(q.size() == numdofs());
-    assert(g.size() == numedges());
-    energyB = energyS = 0;
-
-    if(derivativesRequested & ElasticEnergy::DR_DQ)
+    OMMesh::EdgeHandle eh = mesh_->edge_handle(edgeid);
+    double weight = 0;
+    for(int i=0; i<2; i++)
     {
-        gradq.resize(numdofs());
-        gradq.setZero();
-        if(derivativesRequested & ElasticEnergy::DR_HQ)
-            hessq.resize(numdofs(), numdofs());
+        OMMesh::HalfedgeHandle heh = mesh_->halfedge_handle(eh,i);
+
+        if(mesh_->is_boundary(heh))
+            continue;
+        OMMesh::HalfedgeHandle next = mesh_->next_halfedge_handle(heh);
+
+        Vector3d e1, e2;
+        OMMesh::VertexHandle oppv = mesh_->to_vertex_handle(next);
+        OMMesh::VertexHandle v1 = mesh_->to_vertex_handle(heh);
+        OMMesh::VertexHandle v2 = mesh_->from_vertex_handle(heh);
+        e1 = q.segment<3>(3*v1.idx())-q.segment<3>(3*oppv.idx());
+        e2 = q.segment<3>(3*v2.idx())-q.segment<3>(3*oppv.idx());
+        double cosang = e1.dot(e2);
+        double sinang = (e1.cross(e2)).norm();
+        weight += 0.5*cosang/sinang;
     }
+    return weight;
+}
 
-    if(derivativesRequested & ElasticEnergy::DR_DGDQ)
-    {
-        gradggradq.resize(numedges(), numdofs());
-    }
+void Mesh::dirichletLaplacian(const VectorXd &q, Eigen::SparseMatrix<double> &L)
+{
+    int numverts = mesh_->n_vertices();
+    L.resize(numverts, numverts);
+    L.setZero();
+    vector<Tr> Lcoeffs;
 
-
-    vector<Tr> Hqcoeffs;
-    vector<Tr> Hgcoeffs;
-    vector<Tr> dgdqcoeffs;
-
-    // bending energy
     for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
     {
         if(mesh_->is_boundary(vi.handle()))
             continue;
 
-        vector<int> spokeidx;
-        vector<int> rightoppidx;
-        vector<int> nbidx;
+        double totweight = 0;
+
         for(OMMesh::VertexOHalfedgeIter voh = mesh_->voh_iter(vi.handle()); voh; ++voh)
         {
-            OMMesh::HalfedgeHandle heh = voh.handle();
-            int eidx = mesh_->edge_handle(heh).idx();
-            spokeidx.push_back(eidx);
-
-            OMMesh::VertexOHalfedgeIter nextoh = voh;
-            ++nextoh;
-            if(!nextoh)
-                nextoh = mesh_->voh_iter(vi.handle());
-
-            OMMesh::VertexHandle nextvert = mesh_->to_vertex_handle(nextoh.handle());
-
-            OMMesh::HalfedgeHandle opp = mesh_->next_halfedge_handle(heh);;
-            if(mesh_->to_vertex_handle(opp) != nextvert)
-            {
-                opp = mesh_->prev_halfedge_handle(mesh_->opposite_halfedge_handle(heh));
-                assert(mesh_->from_vertex_handle(opp) == nextvert);
-            }
-
-            int oidx = mesh_->edge_handle(opp).idx();
-            rightoppidx.push_back(oidx);
-
-            OMMesh::VertexHandle vh = mesh_->to_vertex_handle(heh);
-            nbidx.push_back(vh.idx());
+            OMMesh::EdgeHandle eh = mesh_->edge_handle(voh.handle());
+            double weight = cotanWeight(eh.idx(), q);
+            OMMesh::VertexHandle nb = mesh_->to_vertex_handle(voh.handle());
+            Lcoeffs.push_back(Tr(vi.handle().idx(), nb.idx(), weight));
+            totweight += weight;
         }
-
-        int centidx = vi.handle().idx();
-
-        energyB += ElasticEnergy::bendingEnergy(q, g, centidx, nbidx, spokeidx, rightoppidx, gradq, Hqcoeffs, dgdqcoeffs, params_, derivativesRequested);
+        Lcoeffs.push_back(Tr(vi.handle().idx(), vi.handle().idx(), -totweight));
     }
-
-    // Stretching energy
-    for(OMMesh::FaceIter it = mesh_->faces_begin(); it != mesh_->faces_end(); ++it)
-    {
-        int qidx[3];
-        int gidx[3];
-
-        int idx=0;
-        for(OMMesh::FaceHalfedgeIter fhi = mesh_->fh_iter(it.handle()); fhi; ++fhi)
-        {
-            assert(idx < 3);
-            OMMesh::HalfedgeHandle heh = fhi.handle();
-            OMMesh::EdgeHandle eh = mesh_->edge_handle(heh);
-            OMMesh::VertexHandle from = mesh_->from_vertex_handle(heh);
-            gidx[idx] = eh.idx();
-            qidx[(idx+1)%3] = from.idx();
-            idx++;
-        }
-        assert(idx == 3);
-
-        energyS += ElasticEnergy::stretchingEnergy(q, g, qidx, gidx, gradq, Hqcoeffs, dgdqcoeffs, params_, derivativesRequested);
-    }
-
-    if(derivativesRequested & ElasticEnergy::DR_HQ)
-        hessq.setFromTriplets(Hqcoeffs.begin(), Hqcoeffs.end());
-    if(derivativesRequested & ElasticEnergy::DR_DGDQ)
-        gradggradq.setFromTriplets(dgdqcoeffs.begin(), dgdqcoeffs.end());
+    L.setFromTriplets(Lcoeffs.begin(), Lcoeffs.end());
+    SparseMatrix<double> Minv;
+    buildInvMassMatrix(q, Minv);
+    L = Minv*L;
 }
 
-double Mesh::triangleInequalityLineSearch(const VectorXd &g, const VectorXd &dg) const
+void Mesh::neumannLaplacian(const VectorXd &q, Eigen::SparseMatrix<double> &L)
 {
-    assert(g.size() == numedges());
-    assert(dg.size() == numedges());
+    int numverts = mesh_->n_vertices();
+    L.resize(numverts, numverts);
+    L.setZero();
+    vector<Tr> Lcoeffs;
 
-    double maxt = std::numeric_limits<double>::infinity();
-
-    for(OMMesh::FaceIter fi = mesh_->faces_begin(); fi != mesh_->faces_end(); ++fi)
+    for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
     {
-        vector<double> gs;
-        vector<double> dgs;
-        for(OMMesh::FaceEdgeIter fei = mesh_->fe_iter(fi.handle()); fei; ++fei)
+        double totweight = 0;
+
+        for(OMMesh::VertexOHalfedgeIter voh = mesh_->voh_iter(vi.handle()); voh; ++voh)
         {
-            gs.push_back(g[fei.handle().idx()]);
-            dgs.push_back(dg[fei.handle().idx()]);
+            OMMesh::EdgeHandle eh = mesh_->edge_handle(voh.handle());
+            double weight = cotanWeight(eh.idx(), q);
+            OMMesh::VertexHandle nb = mesh_->to_vertex_handle(voh.handle());
+            Lcoeffs.push_back(Tr(vi.handle().idx(), nb.idx(), weight));
+            totweight += weight;
         }
-        assert(gs.size() == 3);
-        for(int i=0; i<3; i++)
+        Lcoeffs.push_back(Tr(vi.handle().idx(), vi.handle().idx(), -totweight));
+    }
+
+    // PITA boundary
+
+    for(OMMesh::HalfedgeIter hi = mesh_->halfedges_begin(); hi != mesh_->halfedges_end(); ++hi)
+    {
+        if(!mesh_->is_boundary(hi.handle()))
+            continue;
+
+        OMMesh::HalfedgeHandle opp = mesh_->opposite_halfedge_handle(hi.handle());
+        OMMesh::HalfedgeHandle next = mesh_->next_halfedge_handle(opp);
+
+        OMMesh::VertexHandle intvert = mesh_->to_vertex_handle(next);
+        OMMesh::VertexHandle v1 = mesh_->to_vertex_handle(opp);
+        OMMesh::VertexHandle v2 = mesh_->from_vertex_handle(opp);
+
+        Vector3d ivp, v1p, v2p;
+        for(int j=0; j<3; j++)
         {
-            int idx[3];
-            for(int j=0; j<3; j++)
-            {
-                idx[j] = (i+j)%3;
-            }
-            double thismax = triangleInequalityLineSearch(gs[idx[0]], gs[idx[1]], gs[idx[2]],
-                    dgs[idx[0]], dgs[idx[1]], dgs[idx[2]]);
-
-            maxt = std::min(maxt, thismax);
+            ivp[j] = mesh_->point(intvert)[j];
+            v1p[j] = mesh_->point(v1)[j];
+            v2p[j] = mesh_->point(v2)[j];
         }
+
+        double sintheta = ((v1p-ivp).cross(v2p-ivp)).norm();
+        double costheta = ((v1p-ivp).dot(v2p-ivp));
+        double magprod = (v1p-ivp).norm()*(v2p-ivp).norm();
+        double weight = sintheta/(magprod+costheta);
+        Lcoeffs.push_back(Tr(v1.idx(), v1.idx(), 0.5*weight));
+        Lcoeffs.push_back(Tr(v1.idx(), v2.idx(), 0.5*weight));
+        Lcoeffs.push_back(Tr(v1.idx(), intvert.idx(), -weight));
+        Lcoeffs.push_back(Tr(v2.idx(), v1.idx(), 0.5*weight));
+        Lcoeffs.push_back(Tr(v2.idx(), v2.idx(), 0.5*weight));
+        Lcoeffs.push_back(Tr(v2.idx(), intvert.idx(), -weight));
     }
 
-    return maxt;
+    L.setFromTriplets(Lcoeffs.begin(), Lcoeffs.end());
+    SparseMatrix<double> Minv;
+    buildInvMassMatrix(q, Minv);
+    L = Minv*L;
 }
-
-double Mesh::triangleInequalityLineSearch(double g0, double g1, double g2, double dg0, double dg1, double dg2) const
-{
-    double num = g0+g1-g2;
-    double denom = dg2-dg0-dg1;
-    if(denom == 0)
-        return std::numeric_limits<double>::infinity();
-    double cand = num/denom;
-    if(cand < 0)
-        return std::numeric_limits<double>::infinity();
-    return cand;
-}
-
-class EmbeddingMinimizer : public NewtonObjective
-{
-public:
-    EmbeddingMinimizer(Mesh &m, Controller &cont, const VectorXd &g) : m_(m), cont_(cont), g_(g) {}
-
-    virtual double getEnergy(const VectorXd &q) const
-    {
-        double energyB, energyS;
-        VectorXd gradq;
-        SparseMatrix<double> hessq;
-        SparseMatrix<double> gradggradq;
-        int derivs = ElasticEnergy::DR_NONE;
-        m_.elasticEnergy(q, g_, energyB, energyS, gradq, hessq, gradggradq, derivs);
-        return energyB+energyS;
-    }
-
-    virtual double getEnergyAndDerivatives(const VectorXd &q, VectorXd &grad, SparseMatrix<double> &hess) const
-    {
-        double energyB, energyS;
-        SparseMatrix<double> dgdq;
-        int derivs = ElasticEnergy::DR_DQ | ElasticEnergy::DR_HQ;
-        m_.elasticEnergy(q, g_, energyB, energyS, grad, hess, dgdq, derivs);
-        return energyB+energyS;
-    }
-
-    virtual void showCurrentIteration(const VectorXd &q) const
-    {
-        m_.dofsToGeometry(q, g_);
-        cont_.updateGL();
-    }
-
-private:
-    Mesh &m_;
-    Controller &cont_;
-    const VectorXd &g_;
-};
 
 class ImplicitEulerStep : public NewtonObjective
 {
 public:
-    ImplicitEulerStep(Mesh &m, Controller &cont, const VectorXd &g, const VectorXd &qi, const VectorXd &vi, double h) :
-        m_(m), cont_(cont), g_(g), qi_(qi), vi_(vi), h_(h) {}
+    ImplicitEulerStep(Mesh &m,
+                      Controller &cont,
+                      const VectorXd &q0,
+                      const SparseMatrix<double> &Ld,
+                      const SparseMatrix<double> &Ln,
+                      const SparseMatrix<double> &M,
+                      const SparseMatrix<double> &Bdry,
+                      double h, double kb, double ks, double A, double B) :
+        m_(m), cont_(cont), q0_(q0), Ld_(Ld), Ln_(Ln), M_(M), Bdry_(Bdry), h_(h), kb_(kb), ks_(ks), A_(A), B_(B) {}
 
     virtual double getEnergy(const VectorXd &q) const
     {
-        double energyB, energyS;
-        VectorXd gradq;
-        SparseMatrix<double> hessq;
-        SparseMatrix<double> gradggradq;
-        int derivs = ElasticEnergy::DR_NONE;
-        m_.elasticEnergy(qi_+h_*q, g_, energyB, energyS, gradq, hessq, gradggradq, derivs);
-        SparseMatrix<double> M;
-        m_.buildMassMatrix(qi_, M);
+        int nverts = m_.numverts();
+        SparseMatrix<double> hcube(nverts, nverts);
+        vector<Tr> hcubecoeffs;
 
-        return 0.5*(q-vi_).dot(M*(q-vi_)) + energyB + energyS;
+        VectorXd LJ(nverts);
+        VectorXd LJ0(nverts);
+        for(int j=0; j<nverts; j++)
+        {
+            hcubecoeffs.push_back(Tr(j,j,q[j]*q[j]*q[j]));
+            LJ[j] = -3.0*A_/q[j]/q[j]/q[j]/q[j] + 9.0*B_/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j];
+            LJ0[j] = -3.0*A_/q0_[j]/q0_[j]/q0_[j]/q0_[j] + 9.0*B_/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j];
+        }
+        hcube.setFromTriplets(hcubecoeffs.begin(),hcubecoeffs.end());
+
+        SparseMatrix<double> bendingTerm = -Ln_.transpose()*M_*Ln_;
+
+        VectorXd fsurface = kb_*bendingTerm*q + ks_*M_*Ln_*q + LJ;
+        VectorXd fsurface0 = kb_*bendingTerm*q0_ + ks_* M_*Ln_*q0_ + LJ;
+
+        SparseMatrix<double> id(nverts,nverts);
+        id.setIdentity();
+
+        VectorXd f = (q-q0_)/h_ + hcube*Ld_*fsurface;
+        return 0.5*f.dot(f);
     }
 
     virtual double getEnergyAndDerivatives(const VectorXd &q, VectorXd &grad, SparseMatrix<double> &hess) const
     {
-        double energyB, energyS;
-        VectorXd gradq;
-        SparseMatrix<double> hessq;
-        SparseMatrix<double> gradggradq;
-        int derivs = ElasticEnergy::DR_DQ | ElasticEnergy::DR_HQ;
-        m_.elasticEnergy(qi_+h_*q, g_, energyB, energyS, gradq, hessq, gradggradq, derivs);
+        int nverts = m_.numverts();
+        SparseMatrix<double> id(nverts,nverts);
+        id.setIdentity();
 
-        SparseMatrix<double> M;
-        m_.buildMassMatrix(qi_, M);
+        SparseMatrix<double> hcube(nverts, nverts);
+        vector<Tr> hcubecoeffs;
 
-        grad = M*(q-vi_) + h_ * gradq;
+        VectorXd LJ(nverts);
+        VectorXd LJ0(nverts);
+        for(int j=0; j<nverts; j++)
+        {
+            hcubecoeffs.push_back(Tr(j,j,q[j]*q[j]*q[j]));
+            LJ[j] = -3.0*A_/q[j]/q[j]/q[j]/q[j] + 9.0*B_/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j];
+            LJ0[j] = -3.0*A_/q0_[j]/q0_[j]/q0_[j]/q0_[j] + 9.0*B_/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j]/q0_[j];
+        }
+        hcube.setFromTriplets(hcubecoeffs.begin(),hcubecoeffs.end());
 
-        hess = M + h_*h_*hessq;
+        SparseMatrix<double> dLJ(nverts,nverts);
+        vector<Tr> dLJcoeffs;
+        for(int j=0; j<nverts; j++)
+        {
+            dLJcoeffs.push_back(Tr(j,j,12.0*A_/q[j]/q[j]/q[j]/q[j]/q[j] - 90.0*B_/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]/q[j]));
+        }
+        dLJ.setFromTriplets(dLJcoeffs.begin(), dLJcoeffs.end());
 
-        return 0.5*(q-vi_).dot(M*(q-vi_)) + energyB + energyS;
-    }
+        SparseMatrix<double> bendingTerm = -Ln_.transpose()*M_*Ln_;
 
-    virtual void showCurrentIteration(const VectorXd &) const
-    {
-        m_.dofsToGeometry(qi_, g_);
-        cont_.updateGL();
-    }
+        VectorXd fsurface = kb_*bendingTerm*q + ks_* M_*Ln_*q + LJ;
+        VectorXd fsurface0 = kb_*bendingTerm*q0_ + ks_* M_*Ln_*q0_ + LJ;
+        VectorXd f = (q-q0_)/h_ + hcube*Ld_*fsurface;
 
-private:
-    Mesh &m_;
-    Controller &cont_;
-    const VectorXd &g_;
-    const VectorXd &qi_;
-    const VectorXd &vi_;
-    double h_;
-};
+        SparseMatrix<double> dfsurface(nverts,nverts);
+        dfsurface = kb_*bendingTerm + ks_*M_*Ln_ + dLJ;
+        SparseMatrix<double> df(nverts,nverts);
+        df.setIdentity();
+        df /= h_;
+        df += hcube*Ld_*dfsurface;
 
-class MetricFit : public NewtonObjective
-{
-public:
-    MetricFit(Mesh &m, Controller &cont, const VectorXd &q) : m_(m), cont_(cont), q_(q) {}
 
-    virtual double getEnergy(const VectorXd &q) const
-    {
-        VectorXd gradq;
-        SparseMatrix<double> dgdq, hessq;
-        int derivs = ElasticEnergy::DR_DQ;
-        double energyB, energyS;
-        m_.elasticEnergy(q_, q, energyB, energyS, gradq, hessq, dgdq, derivs);
-        return gradq.norm();
-    }
+        SparseMatrix<double> dhcube(nverts,nverts);
+        vector<Tr> dhcubecoeffs;
 
-    virtual double getEnergyAndDerivatives(const VectorXd &q, VectorXd &grad, SparseMatrix<double> &hess) const
-    {
-        SparseMatrix<double> dgdq, hessq;
-        VectorXd gradq;
-        double energyB, energyS;
-        int derivs = ElasticEnergy::DR_DQ | ElasticEnergy::DR_DGDQ;
-        m_.elasticEnergy(q_, q, energyB, energyS, gradq, hessq, dgdq, derivs);
-        grad = dgdq*gradq;
-        hess = dgdq*dgdq.transpose();
-        return gradq.norm();
+        for(int j=0; j<nverts; j++)
+        {
+            double dhcfac = 3.0*q[j]*q[j];
+            dhcubecoeffs.push_back(Tr(j,j,dhcfac));
+        }
+        dhcube.setFromTriplets(dhcubecoeffs.begin(), dhcubecoeffs.end());
+
+        SparseMatrix<double> fsurfacediag(nverts,nverts);
+        vector<Tr> fsurfacediagcoeffs;
+        for(int j=0; j<nverts; j++)
+        {
+            fsurfacediagcoeffs.push_back(Tr(j,j,fsurface[j]));
+        }
+        fsurfacediag.setFromTriplets(fsurfacediagcoeffs.begin(), fsurfacediagcoeffs.end());
+
+        df += dhcube*Ld_*fsurfacediag;
+
+        grad = df.transpose()*f;
+        hess = df.transpose()*df;
+
+        return 0.5*f.dot(f);
     }
 
     virtual void showCurrentIteration(const VectorXd &q) const
     {
-        m_.dofsToGeometry(q_, q);
+        m_.dofsToGeometry(q);
         cont_.updateGL();
     }
 
 private:
     Mesh &m_;
     Controller &cont_;
-    const VectorXd &q_;
+    const VectorXd &q0_;
+    const SparseMatrix<double> &Ld_;
+    const SparseMatrix<double> &Ln_;
+    const SparseMatrix<double> &M_;
+    const SparseMatrix<double> &Bdry_;
+    double h_;
+    double kb_;
+    double ks_;
+    double A_;
+    double B_;
 };
-
 
 bool Mesh::simulate(Controller &cont)
 {
-    VectorXd q(numdofs());
-    VectorXd g(numedges());
-    dofsFromGeometry(q, g);
-
-    double h = params_.eulerTimestep;
-    VectorXd v(numdofs());
-    v.setZero();
+    double ts = params_.eulerTimestep;
     int numsteps = params_.numEulerIters;
 
-    for(int i=0; i<numsteps; i++)
+    VectorXd fullq(3*numverts());
+    for(int i=0; i<numverts(); i++)
     {
-        ImplicitEulerStep obj(*this, cont, g, q, v, h);
-        Newton n(obj);
+        OMMesh::Point pt = mesh_->point(mesh_->vertex_handle(i));
+        for(int j=0; j<3; j++)
+            fullq[3*i+j] = pt[j];
+    }
+    SparseMatrix<double> Ld;
+    SparseMatrix<double> Ln;
+    SparseMatrix<double> M;
+    SparseMatrix<double> Bdry(numverts(), numverts());
+    dirichletLaplacian(fullq,Ld);
+    neumannLaplacian(fullq, Ln);
+    buildMassMatrix(fullq, M);
+
+    vector<Tr> bdrycoeffs;
+    for(int i=0; i<numverts(); i++)
+    {
+        if(mesh_->is_boundary(mesh_->vertex_handle(i)))
+            bdrycoeffs.push_back(Tr(i,i,1));
+    }
+    Bdry.setFromTriplets(bdrycoeffs.begin(), bdrycoeffs.end());
+
+    setBump();
+    cont.updateGL();
+    VectorXd h(numverts());
+    dofsFromGeometry(h);
+
+    double kb = 1e-5;
+    double ks = 0*1;
+    double A = .01;
+    double B = A/30.0;//*1e-5;
+
+    for(int iter = 0; iter < numsteps; iter++)
+    {
+        ImplicitEulerStep *obj = new ImplicitEulerStep(*this, cont, h, Ld, Ln, M, Bdry, ts, kb, ks, A, B);
+        Newton n(*obj);
         NewtonParameters params;
         params.tol = params_.tol;
         params.maxiters = params_.maxiters;
         params.lsmaxiters = params_.maxlinesearchiters;
-        VectorXd newv(numdofs());
-        Newton::SolverStatus ss = n.solve(params, v, newv);
+        //params.descentcheck = false;
+        VectorXd result;
+        Newton::SolverStatus ss = n.solve(params, h, result);
         std::cout << n.solverStatusMessage(ss) << std::endl;
 
-        v = newv*params_.dampingCoeff;
-        q += h*v;
-    }
+        delete obj;
 
-    dofsToGeometry(q, g);
-    cont.updateGL();
+        if(ss != Newton::CONVERGED)
+            return false;
+
+        h = result;
+        dofsToGeometry(h);
+        cont.updateGL();
+    }
     return true;
 }
 
-bool Mesh::relaxEnergy(Controller &cont, RelaxationType type)
+void Mesh::setBump()
 {
-    VectorXd q(numdofs());
-    VectorXd g(numedges());
-    dofsFromGeometry(q, g);
-
-    NewtonObjective *obj = NULL;
-    VectorXd guess;
-
-    if(type == RelaxEmbedding)
+    for(int i=0; i<(int)mesh_->n_vertices(); i++)
     {
-        obj = new EmbeddingMinimizer(*this, cont, g);
-        guess = q;
+        OMMesh::VertexHandle vh = mesh_->vertex_handle(i);
+        OMMesh::Point pos = mesh_->point(vh);
+        double r = sqrt(pos[0]*pos[0]+pos[1]*pos[1]);
+        double z = 1.1 - 0.1*tanh(r)*tanh(r);
+        mesh_->point(vh)[2] = z;
     }
-    else if(type == FitMetric)
-    {
-        obj = new MetricFit(*this, cont, q);
-        guess = g;
-    }
-    else
-        return false;
-
-    Newton n(*obj);
-    NewtonParameters params;
-    params.tol = params_.tol;
-    params.maxiters = params_.maxiters;
-    params.lsmaxiters = params_.maxlinesearchiters;
-    VectorXd result;
-    Newton::SolverStatus ss = n.solve(params, guess, result);
-    std::cout << n.solverStatusMessage(ss) << std::endl;
-
-    delete obj;
-
-    if(ss != Newton::CONVERGED)
-        return false;
-
-    if(type == RelaxEmbedding)
-    {
-        q = result;
-    }
-    else if(type == FitMetric)
-    {
-        g = result;
-    }
-
-    dofsToGeometry(q, g);
-    cont.updateGL();
-    return true;
 }
 
 void Mesh::buildMassMatrix(const VectorXd &q, Eigen::SparseMatrix<double> &M) const
 {
-    M.resize(numdofs(), numdofs());
+    int numverts = mesh_->n_vertices();
+    M.resize(numverts, numverts);
     vector<Tr> entries;
     for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
     {
         int vidx = vi.handle().idx();
         double area = barycentricDualArea(q, vidx);
-        for(int i=0; i<3; i++)
-            entries.push_back(Tr(3*vidx+i, 3*vidx+i, area));
+        entries.push_back(Tr(vidx, vidx, area));
+    }
+
+    M.setFromTriplets(entries.begin(), entries.end());
+}
+
+void Mesh::buildInvMassMatrix(const VectorXd &q, Eigen::SparseMatrix<double> &M) const
+{
+    int numverts = mesh_->n_vertices();
+    M.resize(numverts, numverts);
+    vector<Tr> entries;
+    for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
+    {
+        int vidx = vi.handle().idx();
+        double area = barycentricDualArea(q, vidx);
+        entries.push_back(Tr(vidx, vidx, 1.0/area));
     }
 
     M.setFromTriplets(entries.begin(), entries.end());
@@ -410,4 +388,3 @@ double Mesh::faceArea(const VectorXd &q, int fidx) const
     double A = ((q1-q0).cross(q2-q0)).norm();
     return 0.5*A;
 }
-

@@ -20,8 +20,7 @@ public slots:
     void exportOBJ(std::string filename);
     void importOBJ(std::string filename);
     void updateParameters(ProblemParameters params);
-    void findMetric();
-    void relaxEmbedding();
+    void simulate();
     void quit();
     void centerCamera();
     void updateGL();

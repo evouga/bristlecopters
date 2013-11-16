@@ -56,15 +56,8 @@ void Controller::updateParameters(ProblemParameters params)
     updateGL();
 }
 
-void Controller::findMetric()
+void Controller::simulate()
 {
-    m_.relaxEnergy(*this, Mesh::FitMetric);
-    updateGL();
-}
-
-void Controller::relaxEmbedding()
-{
-    //m_.relaxEnergy(*this, Mesh::RelaxEmbedding);
     m_.simulate(*this);
     updateGL();
 }

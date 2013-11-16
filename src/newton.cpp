@@ -1,6 +1,7 @@
 #include "newton.h"
 #include <iostream>
 #include <iomanip>
+#include <Eigen/Dense>
 
 using namespace Eigen;
 
@@ -22,64 +23,68 @@ Newton::SolverStatus Newton::solve(NewtonParameters params, const VectorXd &gues
         SparseMatrix<double> hessian;
         VectorXd gradient;
         double energy = no_.getEnergyAndDerivatives(q, gradient, hessian);
+        double energycheck = no_.getEnergy(q);
+        if(fabs(energy-energycheck) > 1e-10)
+            return BAD_INPUT;
 
         if(isnan(energy))
             return BAD_INPUT;
 
+        std::cout << std::fixed << std::setprecision(8) << "Iter " << iter+1
+                  << "   E " << energy
+                  << "   |dq| " << gradient.norm();
+
+
         if(gradient.norm() < params.tol)
+        {
+            std::cout << std::endl;
             break;
+        }
 
         SimplicialLDLT<SparseMatrix<double> > solver;
         solver.compute(hessian);
         VectorXd searchdir = -solver.solve(gradient);
 
+        double residual = (hessian*searchdir+gradient).norm();
 
-        std::cout << std::fixed << std::setprecision(8) << "Iter " << iter+1
-                  << "   E " << energy
-                  << "   |dq| " << gradient.norm()
-                  << "   sd = " << searchdir.dot(gradient);
+        std::cout << "   r = " << residual << "   sd = " << searchdir.dot(gradient);
 
-        double stepsize = 1.0;
         double initialenergy = energy;
 
-        double eps = searchdir.dot(gradient) >= 0 ? params.lmfactor : 0;
+        VectorXd newq = q + searchdir;
+        energy = no_.getEnergy(newq);
+        double neededeps=0;
+        double eps = params.lmfactor;
+        int lsiters=0;
 
-        while(searchdir.dot(gradient) >= 0)
+        while(energy > initialenergy || isnan(energy))
         {
-            SparseMatrix<double> shift(hessian.rows(), hessian.cols());
-            shift.setIdentity();
-            shift *= eps;
-            SparseMatrix<double> newh = hessian + shift;
-            SparseQR<SparseMatrix<double>, COLAMDOrdering<int> > solver;
-            solver.compute(newh);
-            searchdir = -solver.solve(gradient);
-            eps *= 2;
-        }
-        std::cout << std::fixed << std::setprecision(8) << "   lm " << eps/2.0;
-
-        int lsiters = 0;
-
-        VectorXd newq;
-
-        do
-        {
-            newq = q + stepsize*searchdir;
-
+            neededeps = eps;
             if(++lsiters > params.lsmaxiters)
             {
                 std::cout << std::endl;
                 return LSITERS_EXCEEDED;
             }
-
+            SparseMatrix<double> shift(hessian.rows(), hessian.cols());
+            std::vector<Tr> shiftcoeffs;
+            for(int i=0; i<hessian.rows(); i++)
+                shiftcoeffs.push_back(Tr(i,i,eps*hessian.coeffRef(i,i)));
+            shift.setFromTriplets(shiftcoeffs.begin(), shiftcoeffs.end());
+            SparseMatrix<double> newh = hessian + shift;
+            SimplicialLDLT<SparseMatrix<double> > solver;
+            solver.compute(newh);
+            searchdir = -solver.solve(gradient);
+            newq = q + searchdir;
+            residual = (newh*searchdir+gradient).norm();
+            eps *= 10;
             energy = no_.getEnergy(newq);
-            stepsize /= 2.0;
+            //std::cerr << residual << " " << searchdir.norm() << " " << energy << " " << initialenergy << std::endl;
         }
-        while(energy > initialenergy || isnan(energy));
+
+        std::cout << std::fixed << std::setprecision(8) << "   lm " << neededeps << std::endl;
 
         q = newq;
         no_.showCurrentIteration(q);
-
-        std::cout << std::fixed << std::setprecision(8) << "   h " << stepsize*2.0 << std::endl;
     }
 
     if(iter == params.maxiters)

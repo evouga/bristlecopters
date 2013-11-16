@@ -48,15 +48,11 @@ private slots:
 
     void on_thicknessEdit_textEdited(const QString &arg1);
 
-    void on_findMetricButton_clicked();
-
     void on_maxitersEdit_textEdited(const QString &arg1);
 
     void on_maxlsitersEdit_textEdited(const QString &arg1);
 
     void on_tolEdit_textEdited(const QString &arg1);
-
-    void on_relaxEmbeddingButton_clicked();
 
     void on_densityEdit_textEdited(const QString &arg1);
 
@@ -65,6 +61,8 @@ private slots:
     void on_eulerTimestepEdit_textEdited(const QString &arg1);
 
     void on_eulerItersEdit_textEdited(const QString &arg1);
+
+    void on_simulateButton_clicked();
 
 private:
     void updateGL();

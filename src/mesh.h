@@ -11,15 +11,6 @@ class Controller;
 
 struct MyTraits : public OpenMesh::DefaultTraits
 {
-    EdgeTraits
-    {
-    private:
-        double restlen_;
-    public:
-        EdgeT() : restlen_(0) {}
-        double restlen() const {return restlen_;}
-        void setRestlen(double l) {restlen_=l;}
-    };
 };
 
 typedef OpenMesh::TriMesh_ArrayKernelT<MyTraits> OMMesh;
@@ -46,13 +37,10 @@ class Mesh
 public:
     Mesh();
 
-    enum RelaxationType {RelaxMetric, RelaxEmbedding, FitMetric};
-
-    bool relaxEnergy(Controller &cont, RelaxationType type);
     bool simulate(Controller &cont);
 
-    int numdofs() const;
     int numedges() const;
+    int numverts() const;
     const ProblemParameters &getParameters() const;
     void setParameters(ProblemParameters params);
 
@@ -70,27 +58,19 @@ public:
     friend class ImplicitEulerStep;
 
 private:
-    void dofsFromGeometry(Eigen::VectorXd &q, Eigen::VectorXd &g) const;
-    void dofsToGeometry(const Eigen::VectorXd &q, const Eigen::VectorXd &g);
-    void setIntrinsicLengthsToCurrentLengths();
+    void dofsFromGeometry(Eigen::VectorXd &h) const;
+    void dofsToGeometry(const Eigen::VectorXd &h);
+
+    double cotanWeight(int eidx, const Eigen::VectorXd &q);
+    void dirichletLaplacian(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &L);
+    void neumannLaplacian(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &L);
+    void setBump();
+
     void edgeEndpoints(OMMesh::EdgeHandle eh, OMMesh::Point &pt1, OMMesh::Point &pt2);
-    double triangleInequalityLineSearch(const Eigen::VectorXd &g, const Eigen::VectorXd &dg) const;
-    double triangleInequalityLineSearch(double g0, double g1, double g2, double dg0, double dg1, double dg2) const;
-    double infinityNorm(const Eigen::VectorXd &v) const;
     void buildMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;
+    void buildInvMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;
     double barycentricDualArea(const Eigen::VectorXd &q, int vidx) const;
     double faceArea(const Eigen::VectorXd &q, int fidx) const;
-
-    double strainDensity(int edgeidx) const;
-    double vertexStrainDensity(int vertidx) const;
-
-    void elasticEnergy(const Eigen::VectorXd &q, const Eigen::VectorXd &g,
-                       double &energyB,
-                       double &energyS,
-                       Eigen::VectorXd &gradq,
-                       Eigen::SparseMatrix<double> &hessq, Eigen::SparseMatrix<double> &gradggradq,
-                       int derivativesRequested) const;
-
 
     Eigen::Vector3d colormap(double val) const;
     Eigen::Vector3d colormap(double val, double max) const;

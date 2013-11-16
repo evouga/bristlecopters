@@ -19,6 +19,18 @@ void Mesh::render()
         glColorMaterial ( GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE );
         glEnable ( GL_COLOR_MATERIAL );
 
+        glBegin(GL_QUADS);
+        glColor4f(.3,.3,.1,1);
+        glNormal3d(0,0,1.0);
+        glVertex3d(100.0,100.0,0.0);
+        glNormal3d(0,0,1.0);
+        glVertex3d(100.0,-100.0,0.0);
+        glNormal3d(0,0,1.0);
+        glVertex3d(-100.0,-100.0,0.0);
+        glNormal3d(0,0,1.0);
+        glVertex3d(-100.0,100.0,0.0);
+        glEnd();
+
         if(params_.smoothShade)
         {
             glShadeModel(GL_SMOOTH);
@@ -46,7 +58,7 @@ void Mesh::render()
         {
             for(OMMesh::FaceVertexIter fvi = mesh_->fv_iter(fi.handle()); fvi; ++fvi)
             {
-                double strain = vertexStrainDensity(fvi.handle().idx());
+                double strain = 0;
                 Vector3d color = colormap(strain, 0.5);
                 OMMesh::VertexHandle v = fvi.handle();
                 OMMesh::Point pt = mesh_->point(v);
@@ -80,7 +92,7 @@ void Mesh::render()
         glDisableClientState(GL_NORMAL_ARRAY);
         glDisableClientState(GL_COLOR_ARRAY);
         glDisable(GL_POLYGON_OFFSET_FILL);
-        glDisable(GL_LIGHTING);
+        glDisable(GL_LIGHTING);               
 
         if(params_.showWireframe)
         {

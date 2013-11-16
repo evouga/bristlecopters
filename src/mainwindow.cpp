@@ -184,11 +184,6 @@ void MainWindow::on_thicknessEdit_textEdited(const QString &)
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }
 
-void MainWindow::on_findMetricButton_clicked()
-{
-    QMetaObject::invokeMethod(cont_, "findMetric");
-}
-
 void MainWindow::on_maxitersEdit_textEdited(const QString &)
 {
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
@@ -202,11 +197,6 @@ void MainWindow::on_maxlsitersEdit_textEdited(const QString &)
 void MainWindow::on_tolEdit_textEdited(const QString &)
 {
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_relaxEmbeddingButton_clicked()
-{
-    QMetaObject::invokeMethod(cont_, "relaxEmbedding");
 }
 
 void MainWindow::on_densityEdit_textEdited(const QString &)
@@ -227,4 +217,9 @@ void MainWindow::on_eulerTimestepEdit_textEdited(const QString &)
 void MainWindow::on_eulerItersEdit_textEdited(const QString &)
 {
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
+}
+
+void MainWindow::on_simulateButton_clicked()
+{
+    QMetaObject::invokeMethod(cont_, "simulate");
 }

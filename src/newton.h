@@ -4,6 +4,8 @@
 #include <Eigen/Core>
 #include <Eigen/Sparse>
 
+typedef Eigen::Triplet<double> Tr;
+
 class NewtonObjective
 {
 public:
@@ -15,7 +17,7 @@ public:
 
 struct NewtonParameters
 {
-    NewtonParameters() : tol(1e-6), maxiters(100), lsmaxiters(100), lmfactor(1e-3) {}
+    NewtonParameters() : tol(1e-6), maxiters(100), lsmaxiters(100), lmfactor(1e-9) {}
     double tol;
     int maxiters;
     int lsmaxiters;
