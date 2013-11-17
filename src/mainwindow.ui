@@ -51,7 +51,7 @@
          <x>50</x>
          <y>10</y>
          <width>220</width>
-         <height>644</height>
+         <height>750</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_9">
@@ -127,7 +127,45 @@
             </rect>
            </property>
            <property name="text">
-            <string>Find Mode</string>
+            <string>Find Modes</string>
+           </property>
+          </widget>
+          <zorder>findModeButton</zorder>
+          <zorder>groupBox</zorder>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBox">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>100</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Internal Modes</string>
+          </property>
+          <widget class="QLabel" name="showModeLabel">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>30</y>
+             <width>121</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Show mode:</string>
+           </property>
+          </widget>
+          <widget class="QLineEdit" name="showModelEdit">
+           <property name="geometry">
+            <rect>
+             <x>140</x>
+             <y>30</y>
+             <width>61</width>
+             <height>20</height>
+            </rect>
            </property>
           </widget>
          </widget>

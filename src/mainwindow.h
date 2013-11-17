@@ -64,6 +64,8 @@ private slots:
 
     void on_findModeButton_clicked();
 
+    void on_showModelEdit_textEdited(const QString &arg1);
+
 private:
     void updateGL();
     void saveScreenshot();

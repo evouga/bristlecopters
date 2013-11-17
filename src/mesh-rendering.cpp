@@ -7,7 +7,7 @@ using namespace Eigen;
 
 const double PI = 3.1415926535898;
 
-void Mesh::render()
+void Mesh::render(double t)
 {
     meshLock_.lock();
     {
@@ -20,18 +20,6 @@ void Mesh::render()
 
         glColorMaterial ( GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE );
         glEnable ( GL_COLOR_MATERIAL );
-
-        glBegin(GL_QUADS);
-        glColor4f(.3,.3,.1,1);
-        glNormal3d(0,0,1.0);
-        glVertex3d(100.0,100.0,0.0);
-        glNormal3d(0,0,1.0);
-        glVertex3d(100.0,-100.0,0.0);
-        glNormal3d(0,0,1.0);
-        glVertex3d(-100.0,-100.0,0.0);
-        glNormal3d(0,0,1.0);
-        glVertex3d(-100.0,100.0,0.0);
-        glEnd();
 
         if(params_.smoothShade)
         {
@@ -60,10 +48,12 @@ void Mesh::render()
         {
             for(OMMesh::FaceVertexIter fvi = mesh_->fv_iter(fi.handle()); fvi; ++fvi)
             {
-                double strain = 0;
-                Vector3d color = colormap(strain, 0.5);
+                double modeMag = pointModeValue(fvi.handle(), params_.curMode);
+                Vector3d color = colormap(modeMag, -1.1, 1.1);
+
                 OMMesh::VertexHandle v = fvi.handle();
-                OMMesh::Point pt = mesh_->point(v);
+                OMMesh::Point pt;
+                pointWithMode(v, pt, params_.curMode, modeAmp(params_.curMode, t));
                 OMMesh::Point n;
                 mesh_->calc_vertex_normal_correct(v, n);
                 n.normalize();
@@ -104,7 +94,7 @@ void Mesh::render()
             {
                 glColor3f(0,0,0);
                 OMMesh::Point pt1, pt2;
-                edgeEndpoints(ei.handle(), pt1, pt2);
+                edgeEndpointsWithMode(ei.handle(), pt1, pt2, params_.curMode, modeAmp(params_.curMode, t));
                 glVertex3d(pt1[0], pt1[1], pt1[2]);
                 glVertex3d(pt2[0], pt2[1], pt2[2]);
             }
@@ -114,9 +104,9 @@ void Mesh::render()
     meshLock_.unlock();
 }
 
-Vector3d Mesh::colormap(double val, double max) const
+Vector3d Mesh::colormap(double val, double min, double max) const
 {
-    double mapped = (max+val)/(2.0*max);
+    double mapped = (val-min)/(max-min);
     return colormap(mapped);
 }
 

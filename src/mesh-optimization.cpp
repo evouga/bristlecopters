@@ -82,7 +82,7 @@ void Mesh::buildExtendedFreeBoundaryLaplacian(const VectorXd &q, Eigen::SparseMa
         double sintheta = ((v1p-ivp).cross(v2p-ivp)).norm();
         double costheta = ((v1p-ivp).dot(v2p-ivp));
         double magprod = (v1p-ivp).norm()*(v2p-ivp).norm();
-        double weight = sintheta/(magprod+costheta);
+        double weight = 0*sintheta/(magprod+costheta);
         for(int j=0; j<3; j++)
         {
             Lcoeffs.push_back(Tr(3*v1.idx()+j, 3*v1.idx()+j, 0.5*weight));
@@ -126,6 +126,7 @@ bool Mesh::findMode(void)
             normal /= norm;
         else
             normal.setZero();
+
         for(int j=0; j<3; j++)
             Ncoeffs.push_back(Tr(3*i+j, i, normal[j]));
     }
@@ -136,7 +137,30 @@ bool Mesh::findMode(void)
 
     std::cout << "solving" << std::endl;
     GeneralizedSelfAdjointEigenSolver<MatrixXd > solver(right, left);
-    std::cout << solver.eigenvalues().transpose() << std::endl;
+
+    modes_ = N*solver.eigenvectors();
+    modeFrequencies_ = solver.eigenvalues();
+    for(int i=0; i<modeFrequencies_.size(); i++)
+    {
+        if(modeFrequencies_[i] < 0)
+            modeFrequencies_[i] = 0;
+        else
+            modeFrequencies_[i] = sqrt(modeFrequencies_[i]);
+    }
+
+    for(int i=0; i<modes_.cols(); i++)
+    {
+        double maxnorm = 0;
+        for(int j=0; j<numverts(); j++)
+        {
+            Vector3d vec = modes_.col(i).segment<3>(3*j);
+            maxnorm = std::max(maxnorm, vec.norm());
+        }
+        if(maxnorm > 0)
+            modes_.col(i) /= maxnorm;
+    }
+    modes_.col(0).setZero();
+
     return true;
 }
 

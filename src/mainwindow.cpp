@@ -91,6 +91,7 @@ void MainWindow::setParameters(ProblemParameters params)
     ui->wireframeCheckBox->setChecked(params.showWireframe);
     ui->smoothShadeCheckBox->setChecked(params.smoothShade);
     ui->densityEdit->setText(QString::number(params.rho));    
+    ui->showModelEdit->setText(QString::number(params.curMode));
 }
 
 ProblemParameters MainWindow::getParameters()
@@ -102,6 +103,7 @@ ProblemParameters MainWindow::getParameters()
     result.showWireframe = ui->wireframeCheckBox->isChecked();
     result.smoothShade = ui->smoothShadeCheckBox->isChecked();
     result.rho = ui->densityEdit->text().toDouble();
+    result.curMode = ui->showModelEdit->text().toInt();
     return result;
 }
 
@@ -210,4 +212,9 @@ void MainWindow::on_eulerItersEdit_textEdited(const QString &)
 void MainWindow::on_findModeButton_clicked()
 {
     QMetaObject::invokeMethod(cont_, "findMode");
+}
+
+void MainWindow::on_showModelEdit_textEdited(const QString &)
+{
+    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }

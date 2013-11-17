@@ -11,10 +11,19 @@
 using namespace std;
 using namespace Eigen;
 
-Controller::Controller(MainWindow &mw) : mw_(mw), m_()
+Controller::Controller(MainWindow &mw) : mw_(mw), m_(), time_(0)
 {
     ProblemParameters params = m_.getParameters();
     mw_.setParameters(params);
+    timer_ = new QTimer(this);
+    connect(timer_, SIGNAL(timeout()), this, SLOT(tick()));
+    timer_->start(100);
+}
+
+void Controller::tick()
+{
+    time_ += 0.1;
+    updateGL();
 }
 
 void Controller::quit()
@@ -24,7 +33,7 @@ void Controller::quit()
 
 void Controller::renderMesh()
 {
-    m_.render();
+    m_.render(time_);
 }
 
 void Controller::exportOBJ(string filename)

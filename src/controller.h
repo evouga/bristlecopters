@@ -4,6 +4,7 @@
 #include "mesh.h"
 #include <Eigen/Core>
 #include <QObject>
+#include <QTimer>
 
 class MainWindow;
 
@@ -24,10 +25,13 @@ public slots:
     void quit();
     void centerCamera();
     void updateGL();
+    void tick();
 
 private:    
     MainWindow &mw_;
     Mesh m_;
+    QTimer *timer_;
+    double time_;
 };
 
 #endif // CONTROLLER_H

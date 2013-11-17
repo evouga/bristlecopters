@@ -15,6 +15,8 @@ Mesh::Mesh() : meshLock_(QMutex::Recursive)
     params_.smoothShade = true;
     params_.showWireframe = true;
 
+    params_.curMode = 0;
+
     mesh_ = new OMMesh();
 }
 
@@ -63,6 +65,26 @@ void Mesh::edgeEndpoints(OMMesh::EdgeHandle eh, OMMesh::Point &pt1, OMMesh::Poin
     pt2 = mesh_->point(mesh_->to_vertex_handle(heh1));
 }
 
+void Mesh::edgeEndpointsWithMode(OMMesh::EdgeHandle edge, OMMesh::Point &p1, OMMesh::Point &p2, int mode, double amp)
+{
+    OMMesh::HalfedgeHandle heh = mesh_->halfedge_handle(edge,0);
+
+    OMMesh::VertexHandle to = mesh_->to_vertex_handle(heh);
+    OMMesh::VertexHandle from = mesh_->from_vertex_handle(heh);
+
+    p1 = mesh_->point(from);
+    p2 = mesh_->point(to);
+
+    if(modes_.rows() == 3*mesh_->n_vertices() && mode >= 0 && modes_.cols() > mode)
+    {
+        for(int j=0; j<3; j++)
+        {
+            p1[j] += amp*modes_.col(mode)[3*from.idx()+j];
+            p2[j] += amp*modes_.col(mode)[3*to.idx()+j];
+        }
+    }
+}
+
 bool Mesh::exportOBJ(const char *filename)
 {
     OpenMesh::IO::Options opt;
@@ -97,4 +119,45 @@ const ProblemParameters &Mesh::getParameters() const
 void Mesh::setParameters(ProblemParameters params)
 {
     params_ = params;
+}
+
+double Mesh::pointModeValue(OMMesh::VertexHandle vert, int mode)
+{
+    double result = 0;
+
+    if(modes_.rows() == 3*mesh_->n_vertices() && mode >= 0 && mode < modes_.cols())
+    {
+        OMMesh::Normal n;
+        mesh_->calc_vertex_normal_correct(vert, n);
+        double norm=0;
+        for(int i=0; i<3; i++)
+        {
+            norm += n[i]*n[i];
+            result += n[i]*modes_.col(mode)[3*vert.idx()+i];
+        }
+        result /= sqrt(norm);
+    }
+    return result;
+}
+
+double Mesh::modeAmp(int mode, double time)
+{
+    double result = 0;
+
+    if(modes_.rows() == 3*mesh_->n_vertices() && mode >= 0 && mode < modes_.cols())
+    {
+        result = sin(modeFrequencies_[mode]*time);
+    }
+    return result;
+}
+
+void Mesh::pointWithMode(OMMesh::VertexHandle vert, OMMesh::Point &pt, int mode, double amp)
+{
+    pt = mesh_->point(vert);
+
+    if(modes_.rows() == 3*mesh_->n_vertices() && mode >= 0 && mode < modes_.cols())
+    {
+        for(int j=0; j<3; j++)
+            pt[j] += amp*modes_.col(mode)[3*vert.idx()+j];
+    }
 }
