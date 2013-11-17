@@ -130,12 +130,10 @@
             <string>Find Modes</string>
            </property>
           </widget>
-          <zorder>findModeButton</zorder>
-          <zorder>groupBox</zorder>
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBox">
+         <widget class="QGroupBox" name="modeBox">
           <property name="minimumSize">
            <size>
             <width>0</width>
@@ -166,6 +164,32 @@
              <width>61</width>
              <height>20</height>
             </rect>
+           </property>
+          </widget>
+          <widget class="QLabel" name="freqLabel">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>60</y>
+             <width>101</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Frequency:</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="freqText">
+           <property name="geometry">
+            <rect>
+             <x>140</x>
+             <y>60</y>
+             <width>101</width>
+             <height>17</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>0</string>
            </property>
           </widget>
          </widget>

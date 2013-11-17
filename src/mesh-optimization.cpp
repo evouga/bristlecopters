@@ -61,6 +61,20 @@ void Mesh::buildExtendedFreeBoundaryLaplacian(const VectorXd &q, Eigen::SparseMa
 
     // PITA boundary
 
+    // a1 = s1 cos theta1
+    // a2 = s2 cos theta2
+    // alt = s1 sin theta1
+
+    // diff = (v2*a1+v1*a2)/s3 - v0
+
+    // tot = diff/alt * s3
+
+    // tot = v2*a1/alt + v1*a2/alt - v0*s3/alt
+    // = v2*(s1 cos theta1)/(s1 sin theta1) + v1 * (s2 cos theta2)/(s2 sin theta2) - v0*s3/alt
+    // = v2 cot theta1 + v1 cot theta2 - v0*(a1/alt + a2/alt)
+    // = v2 cot theta1 + v1 cot theta2 - v0 (cot theta1+ cot theta2)
+    // = (v2-v0) cot theta1 + (v1-v0) cot theta2
+
     for(OMMesh::HalfedgeIter hi = mesh_->halfedges_begin(); hi != mesh_->halfedges_end(); ++hi)
     {
         if(!mesh_->is_boundary(hi.handle()))
@@ -79,18 +93,22 @@ void Mesh::buildExtendedFreeBoundaryLaplacian(const VectorXd &q, Eigen::SparseMa
         v2p = q.segment<3>(3*v2.idx());
 
 
-        double sintheta = ((v1p-ivp).cross(v2p-ivp)).norm();
-        double costheta = ((v1p-ivp).dot(v2p-ivp));
-        double magprod = (v1p-ivp).norm()*(v2p-ivp).norm();
-        double weight = 0*sintheta/(magprod+costheta);
+        double costheta1 = ((ivp-v1p).dot(v2p-v1p));
+        double sintheta1 = ((ivp-v1p).cross(v2p-v1p)).norm();
+        double cottheta1 = costheta1/sintheta1;
+
+        double costheta2 = ((ivp-v2p).dot(v1p-v2p));
+        double sintheta2 = ((ivp-v2p).cross(v1p-v2p)).norm();
+        double cottheta2 = costheta2/sintheta2;
+
         for(int j=0; j<3; j++)
         {
-            Lcoeffs.push_back(Tr(3*v1.idx()+j, 3*v1.idx()+j, 0.5*weight));
-            Lcoeffs.push_back(Tr(3*v1.idx()+j, 3*v2.idx()+j, 0.5*weight));
-            Lcoeffs.push_back(Tr(3*v1.idx()+j, 3*intvert.idx()+j, -weight));
-            Lcoeffs.push_back(Tr(3*v2.idx()+j, 3*v1.idx()+j, 0.5*weight));
-            Lcoeffs.push_back(Tr(3*v2.idx()+j, 3*v2.idx()+j, 0.5*weight));
-            Lcoeffs.push_back(Tr(3*v2.idx()+j, 3*intvert.idx()+j, -weight));
+            Lcoeffs.push_back(Tr(3*v1.idx()+j, 3*v1.idx()+j, 0.5*cottheta2));
+            Lcoeffs.push_back(Tr(3*v1.idx()+j, 3*v2.idx()+j, 0.5*cottheta1));
+            Lcoeffs.push_back(Tr(3*v1.idx()+j, 3*intvert.idx()+j, -0.5*cottheta1-0.5*cottheta2));
+            Lcoeffs.push_back(Tr(3*v2.idx()+j, 3*v1.idx()+j, 0.5*cottheta2));
+            Lcoeffs.push_back(Tr(3*v2.idx()+j, 3*v2.idx()+j, 0.5*cottheta1));
+            Lcoeffs.push_back(Tr(3*v2.idx()+j, 3*intvert.idx()+j, -0.5*cottheta1-0.5*cottheta2));
         }
     }
 
@@ -132,7 +150,7 @@ bool Mesh::findMode(void)
     }
     N.setFromTriplets(Ncoeffs.begin(), Ncoeffs.end());
 
-    SparseMatrix<double> left = N.transpose()*M*N;
+    SparseMatrix<double> left = params_.rho*params_.h*N.transpose()*M*N;
     SparseMatrix<double> right = coeff*N.transpose()*L.transpose()*M*L*N;
 
     std::cout << "solving" << std::endl;
@@ -174,7 +192,7 @@ void Mesh::buildExtendedMassMatrix(const VectorXd &q, Eigen::SparseMatrix<double
         int vidx = vi.handle().idx();
         double area = barycentricDualArea(q, vidx);
         for(int j=0; j<3; j++)
-            entries.push_back(Tr(3*vidx+j, 3*vidx+j, params_.rho*area));
+            entries.push_back(Tr(3*vidx+j, 3*vidx+j, area));
     }
 
     M.setFromTriplets(entries.begin(), entries.end());
@@ -190,7 +208,7 @@ void Mesh::buildExtendedInvMassMatrix(const VectorXd &q, Eigen::SparseMatrix<dou
         int vidx = vi.handle().idx();
         double area = barycentricDualArea(q, vidx);
         for(int j=0; j<3; j++)
-            entries.push_back(Tr(3*vidx+j, 3*vidx+j, 1.0/params_.rho/area));
+            entries.push_back(Tr(3*vidx+j, 3*vidx+j, 1.0/area));
     }
 
     M.setFromTriplets(entries.begin(), entries.end());

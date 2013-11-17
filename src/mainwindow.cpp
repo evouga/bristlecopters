@@ -83,6 +83,11 @@ void MainWindow::updateGL()
     ui->GLwidget->updateGL();
 }
 
+void MainWindow::setModeFrequency(double freq)
+{
+    ui->freqText->setText(QString::number(freq));
+}
+
 void MainWindow::setParameters(ProblemParameters params)
 {
     ui->youngsModulusEdit->setText(QString::number(params.YoungsModulus));
@@ -174,37 +179,12 @@ void MainWindow::on_thicknessEdit_textEdited(const QString &)
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }
 
-void MainWindow::on_maxitersEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_maxlsitersEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_tolEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
 void MainWindow::on_densityEdit_textEdited(const QString &)
 {
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }
 
 void MainWindow::on_dampingCoeffEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_eulerTimestepEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
-void MainWindow::on_eulerItersEdit_textEdited(const QString &)
 {
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }

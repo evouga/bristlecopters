@@ -39,6 +39,7 @@ public:
     int numverts() const;
     const ProblemParameters &getParameters() const;
     void setParameters(ProblemParameters params);
+    double getModeFrequency() const;
 
     // Rendering methods. These run concurrently and must all lock the meshLock before reading from the mesh.
     void render(double t);

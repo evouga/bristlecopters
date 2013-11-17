@@ -26,6 +26,7 @@ public slots:
     void showError(std::string error);
     void centerCamera(Eigen::Vector3d centroid, double radius);
     void repaintMesh();
+    void setModeFrequency(double freq);
 
 private slots:
     void on_actionExit_triggered();
@@ -48,19 +49,9 @@ private slots:
 
     void on_thicknessEdit_textEdited(const QString &arg1);
 
-    void on_maxitersEdit_textEdited(const QString &arg1);
-
-    void on_maxlsitersEdit_textEdited(const QString &arg1);
-
-    void on_tolEdit_textEdited(const QString &arg1);
-
     void on_densityEdit_textEdited(const QString &arg1);
 
     void on_dampingCoeffEdit_textEdited(const QString &arg1);
-
-    void on_eulerTimestepEdit_textEdited(const QString &arg1);
-
-    void on_eulerItersEdit_textEdited(const QString &arg1);
 
     void on_findModeButton_clicked();
 

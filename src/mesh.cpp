@@ -106,6 +106,8 @@ bool Mesh::importOBJ(const char *filename)
         opt.set(OpenMesh::IO::Options::VertexNormal);
         success = OpenMesh::IO::read_mesh(*mesh_, filename, opt);
         mesh_->update_normals();
+        modeFrequencies_.resize(0);
+        modes_.resize(0,0);
     }
     meshLock_.unlock();
     return success;
@@ -160,4 +162,13 @@ void Mesh::pointWithMode(OMMesh::VertexHandle vert, OMMesh::Point &pt, int mode,
         for(int j=0; j<3; j++)
             pt[j] += amp*modes_.col(mode)[3*vert.idx()+j];
     }
+}
+
+double Mesh::getModeFrequency() const
+{
+    if(modes_.rows() == 3*mesh_->n_vertices() && params_.curMode >= 0 && params_.curMode < modes_.cols())
+    {
+        return modeFrequencies_[params_.curMode];
+    }
+    return 0;
 }

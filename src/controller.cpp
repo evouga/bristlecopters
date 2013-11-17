@@ -57,17 +57,24 @@ void Controller::importOBJ(string filename)
     {
         centerCamera();
     }
+    double freq = m_.getModeFrequency();
+    QMetaObject::invokeMethod(&mw_, "setModeFrequency", Q_ARG(double, freq));
+    updateGL();
 }
 
 void Controller::updateParameters(ProblemParameters params)
 {    
     m_.setParameters(params);
+    double freq = m_.getModeFrequency();
+    QMetaObject::invokeMethod(&mw_, "setModeFrequency", Q_ARG(double, freq));
     updateGL();
 }
 
 void Controller::findMode()
 {
     m_.findMode();
+    double freq = m_.getModeFrequency();
+    QMetaObject::invokeMethod(&mw_, "setModeFrequency", Q_ARG(double, freq));
     updateGL();
 }
 
