@@ -4,7 +4,6 @@
 #include "OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh"
 #include <Eigen/Core>
 #include <Eigen/Sparse>
-#include "elasticenergy.h"
 #include <QMutex>
 
 class Controller;
@@ -15,21 +14,17 @@ struct MyTraits : public OpenMesh::DefaultTraits
 
 typedef OpenMesh::TriMesh_ArrayKernelT<MyTraits> OMMesh;
 
-struct ProblemParameters : public ElasticParameters
+struct ProblemParameters
 {
-    // simulation
-    int maxiters;
-    int maxlinesearchiters;
-    double tol;
-    double rho;
-
-    double eulerTimestep;
-    double dampingCoeff;
-    int numEulerIters;
-
     // rendering
     bool showWireframe;
     bool smoothShade;
+
+    // material
+    double h;
+    double PoissonRatio;
+    double YoungsModulus;
+    double rho;
 };
 
 class Mesh
@@ -37,7 +32,7 @@ class Mesh
 public:
     Mesh();
 
-    bool simulate(Controller &cont);
+    bool findMode();
 
     int numedges() const;
     int numverts() const;
@@ -53,22 +48,16 @@ public:
     bool exportOBJ(const char *filename);
     bool importOBJ(const char *filename);
 
-    friend class EmbeddingMinimizer;
-    friend class MetricFit;
-    friend class ImplicitEulerStep;
-
 private:
-    void dofsFromGeometry(Eigen::VectorXd &h) const;
-    void dofsToGeometry(const Eigen::VectorXd &h);
+    void dofsFromGeometry(Eigen::VectorXd &q) const;
+    void dofsToGeometry(const Eigen::VectorXd &q);
 
     double cotanWeight(int eidx, const Eigen::VectorXd &q);
-    void dirichletLaplacian(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &L);
-    void neumannLaplacian(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &L);
-    void setBump();
+    void buildExtendedFreeBoundaryLaplacian(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &L);
 
     void edgeEndpoints(OMMesh::EdgeHandle eh, OMMesh::Point &pt1, OMMesh::Point &pt2);
-    void buildMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;
-    void buildInvMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;
+    void buildExtendedMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;
+    void buildExtendedInvMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;
     double barycentricDualArea(const Eigen::VectorXd &q, int vidx) const;
     double faceArea(const Eigen::VectorXd &q, int fidx) const;
 

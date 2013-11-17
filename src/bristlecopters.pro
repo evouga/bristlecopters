@@ -8,7 +8,7 @@ QT       += core gui opengl
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-TARGET = inversemorpho
+TARGET = bristlecopters
 TEMPLATE = app
 
 INCLUDEPATH += ../ext/openmesh ../ext/eigen
@@ -27,9 +27,7 @@ SOURCES += main.cpp\
     yimage.cpp \
     controller.cpp \
     mesh-rendering.cpp \
-    mesh-optimization.cpp \
-    newton.cpp \
-    elasticenergy.cpp
+    mesh-optimization.cpp
 
 HEADERS  += mainwindow.h \
     mesh.h \
@@ -39,8 +37,6 @@ HEADERS  += mainwindow.h \
     rotator.h \
     camera.h \
     yimage.h \
-    controller.h \
-    newton.h \
-    elasticenergy.h
+    controller.h
 
 FORMS    += mainwindow.ui

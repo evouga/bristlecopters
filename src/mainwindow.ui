@@ -117,7 +117,7 @@
           <property name="title">
            <string>Algorithms</string>
           </property>
-          <widget class="QPushButton" name="simulateButton">
+          <widget class="QPushButton" name="findModeButton">
            <property name="geometry">
             <rect>
              <x>10</x>
@@ -127,7 +127,7 @@
             </rect>
            </property>
            <property name="text">
-            <string>Simulate</string>
+            <string>Find Mode</string>
            </property>
           </widget>
          </widget>
@@ -248,157 +248,6 @@
              <rect>
               <x>130</x>
               <y>120</y>
-              <width>61</width>
-              <height>20</height>
-             </rect>
-            </property>
-           </widget>
-          </widget>
-          <widget class="QGroupBox" name="solverBox">
-           <property name="geometry">
-            <rect>
-             <x>10</x>
-             <y>180</y>
-             <width>191</width>
-             <height>201</height>
-            </rect>
-           </property>
-           <property name="title">
-            <string>Solver</string>
-           </property>
-           <widget class="QLabel" name="maxitersLabel">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>30</y>
-              <width>111</width>
-              <height>17</height>
-             </rect>
-            </property>
-            <property name="text">
-             <string>Max Iterations</string>
-            </property>
-           </widget>
-           <widget class="QLabel" name="maxlsitersLabel">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>60</y>
-              <width>151</width>
-              <height>17</height>
-             </rect>
-            </property>
-            <property name="text">
-             <string>Max LS Iterations</string>
-            </property>
-           </widget>
-           <widget class="QLabel" name="tolLabel">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>90</y>
-              <width>121</width>
-              <height>17</height>
-             </rect>
-            </property>
-            <property name="text">
-             <string>Convergence Tol</string>
-            </property>
-           </widget>
-           <widget class="QLineEdit" name="maxitersEdit">
-            <property name="geometry">
-             <rect>
-              <x>130</x>
-              <y>30</y>
-              <width>61</width>
-              <height>20</height>
-             </rect>
-            </property>
-           </widget>
-           <widget class="QLineEdit" name="maxlsitersEdit">
-            <property name="geometry">
-             <rect>
-              <x>130</x>
-              <y>60</y>
-              <width>61</width>
-              <height>20</height>
-             </rect>
-            </property>
-           </widget>
-           <widget class="QLineEdit" name="tolEdit">
-            <property name="geometry">
-             <rect>
-              <x>130</x>
-              <y>90</y>
-              <width>61</width>
-              <height>20</height>
-             </rect>
-            </property>
-           </widget>
-           <widget class="QLabel" name="eulerItersLabel">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>120</y>
-              <width>111</width>
-              <height>17</height>
-             </rect>
-            </property>
-            <property name="text">
-             <string>Euler Iterations</string>
-            </property>
-           </widget>
-           <widget class="QLabel" name="eulerTimestepLabel">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>150</y>
-              <width>101</width>
-              <height>17</height>
-             </rect>
-            </property>
-            <property name="text">
-             <string>Euler Timestep</string>
-            </property>
-           </widget>
-           <widget class="QLineEdit" name="eulerItersEdit">
-            <property name="geometry">
-             <rect>
-              <x>130</x>
-              <y>120</y>
-              <width>61</width>
-              <height>20</height>
-             </rect>
-            </property>
-           </widget>
-           <widget class="QLineEdit" name="eulerTimestepEdit">
-            <property name="geometry">
-             <rect>
-              <x>130</x>
-              <y>150</y>
-              <width>61</width>
-              <height>20</height>
-             </rect>
-            </property>
-           </widget>
-           <widget class="QLabel" name="dampingCoeffLabel">
-            <property name="geometry">
-             <rect>
-              <x>0</x>
-              <y>180</y>
-              <width>111</width>
-              <height>17</height>
-             </rect>
-            </property>
-            <property name="text">
-             <string>Damping Coeff</string>
-            </property>
-           </widget>
-           <widget class="QLineEdit" name="dampingCoeffEdit">
-            <property name="geometry">
-             <rect>
-              <x>130</x>
-              <y>180</y>
               <width>61</width>
               <height>20</height>
              </rect>

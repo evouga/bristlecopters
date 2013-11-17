@@ -56,9 +56,9 @@ void Controller::updateParameters(ProblemParameters params)
     updateGL();
 }
 
-void Controller::simulate()
+void Controller::findMode()
 {
-    m_.simulate(*this);
+    m_.findMode();
     updateGL();
 }
 

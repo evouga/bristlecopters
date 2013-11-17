@@ -88,15 +88,9 @@ void MainWindow::setParameters(ProblemParameters params)
     ui->youngsModulusEdit->setText(QString::number(params.YoungsModulus));
     ui->poissonRatioEdit->setText(QString::number(params.PoissonRatio));
     ui->thicknessEdit->setText(QString::number(params.h));
-    ui->maxitersEdit->setText(QString::number(params.maxiters));
-    ui->maxlsitersEdit->setText(QString::number(params.maxlinesearchiters));
-    ui->tolEdit->setText(QString::number(params.tol));
     ui->wireframeCheckBox->setChecked(params.showWireframe);
     ui->smoothShadeCheckBox->setChecked(params.smoothShade);
-    ui->densityEdit->setText(QString::number(params.rho));
-    ui->dampingCoeffEdit->setText(QString::number(params.dampingCoeff));
-    ui->eulerItersEdit->setText(QString::number(params.numEulerIters));
-    ui->eulerTimestepEdit->setText(QString::number(params.eulerTimestep));
+    ui->densityEdit->setText(QString::number(params.rho));    
 }
 
 ProblemParameters MainWindow::getParameters()
@@ -105,15 +99,9 @@ ProblemParameters MainWindow::getParameters()
     result.YoungsModulus = ui->youngsModulusEdit->text().toDouble();
     result.PoissonRatio  = ui->poissonRatioEdit->text().toDouble();
     result.h = ui->thicknessEdit->text().toDouble();
-    result.maxiters = ui->maxitersEdit->text().toInt();
-    result.maxlinesearchiters = ui->maxlsitersEdit->text().toInt();
-    result.tol = ui->tolEdit->text().toDouble();
     result.showWireframe = ui->wireframeCheckBox->isChecked();
     result.smoothShade = ui->smoothShadeCheckBox->isChecked();
     result.rho = ui->densityEdit->text().toDouble();
-    result.dampingCoeff = ui->dampingCoeffEdit->text().toDouble();
-    result.eulerTimestep = ui->eulerTimestepEdit->text().toDouble();
-    result.numEulerIters = ui->eulerItersEdit->text().toInt();
     return result;
 }
 
@@ -219,7 +207,7 @@ void MainWindow::on_eulerItersEdit_textEdited(const QString &)
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }
 
-void MainWindow::on_simulateButton_clicked()
+void MainWindow::on_findModeButton_clicked()
 {
-    QMetaObject::invokeMethod(cont_, "simulate");
+    QMetaObject::invokeMethod(cont_, "findMode");
 }

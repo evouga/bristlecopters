@@ -5,6 +5,8 @@ using namespace std;
 using namespace OpenMesh;
 using namespace Eigen;
 
+const double PI = 3.1415926535898;
+
 void Mesh::render()
 {
     meshLock_.lock();

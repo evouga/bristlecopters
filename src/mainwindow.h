@@ -62,7 +62,7 @@ private slots:
 
     void on_eulerItersEdit_textEdited(const QString &arg1);
 
-    void on_simulateButton_clicked();
+    void on_findModeButton_clicked();
 
 private:
     void updateGL();
