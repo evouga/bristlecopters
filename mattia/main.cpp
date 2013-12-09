@@ -183,7 +183,7 @@ int main(int argc, const char * argv[])
     WIDTH.push_back(1.3e-2);
     
     // Number of discretization points
-    const int N = 2000;
+    const int N = 200;
     
     // Scaling factor
     const double scaling = 2.0;
