@@ -184,11 +184,6 @@ void MainWindow::on_densityEdit_textEdited(const QString &)
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }
 
-void MainWindow::on_dampingCoeffEdit_textEdited(const QString &)
-{
-    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
-}
-
 void MainWindow::on_findModeButton_clicked()
 {
     QMetaObject::invokeMethod(cont_, "findMode");

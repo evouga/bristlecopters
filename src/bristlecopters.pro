@@ -27,7 +27,8 @@ SOURCES += main.cpp\
     yimage.cpp \
     controller.cpp \
     mesh-rendering.cpp \
-    mesh-optimization.cpp
+    mesh-optimization.cpp \
+    elasticenergy.cpp
 
 HEADERS  += mainwindow.h \
     mesh.h \
@@ -37,6 +38,7 @@ HEADERS  += mainwindow.h \
     rotator.h \
     camera.h \
     yimage.h \
-    controller.h
+    controller.h \
+    elasticenergy.h
 
 FORMS    += mainwindow.ui

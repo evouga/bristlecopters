@@ -11,6 +11,7 @@ Mesh::Mesh() : meshLock_(QMutex::Recursive)
     params_.YoungsModulus = 1;
     params_.PoissonRatio = 0.5;
     params_.rho = 1.0;
+    params_.scale = 1.0;
 
     params_.smoothShade = true;
     params_.showWireframe = true;
@@ -25,14 +26,20 @@ int Mesh::numverts() const
     return mesh_->n_vertices();
 }
 
+int Mesh::numdofs() const
+{
+    return 3*mesh_->n_vertices();
+}
+
 int Mesh::numedges() const
 {
     return mesh_->n_edges();
 }
 
-void Mesh::dofsFromGeometry(Eigen::VectorXd &q) const
+void Mesh::dofsFromGeometry(Eigen::VectorXd &q, Eigen::VectorXd &g) const
 {
-    q.resize(3*numverts());
+    q.resize(numdofs());
+    g.resize(numedges());
 
     for(int i=0; i<(int)mesh_->n_vertices(); i++)
     {
@@ -40,13 +47,19 @@ void Mesh::dofsFromGeometry(Eigen::VectorXd &q) const
         for(int j=0; j<3; j++)
             q[3*i+j] = pt[j];
     }
+
+    for(int i=0; i<(int)mesh_->n_edges(); i++)
+    {
+        g[i] = mesh_->data(mesh_->edge_handle(i)).restlen();
+    }
 }
 
-void Mesh::dofsToGeometry(const VectorXd &q)
-{    
+void Mesh::dofsToGeometry(const VectorXd &q, const VectorXd &g)
+{
     meshLock_.lock();
     {
-        assert(q.size() == 3*numverts());
+        assert(q.size() == numdofs());
+        assert(g.size() == numedges());
 
         for(int i=0; i<(int)mesh_->n_vertices(); i++)
         {
@@ -54,9 +67,29 @@ void Mesh::dofsToGeometry(const VectorXd &q)
             for(int j=0; j<3; j++)
                 pt[j] = q[3*i+j];
         }
+
+        for(int i=0; i<(int)mesh_->n_edges(); i++)
+        {
+            mesh_->data(mesh_->edge_handle(i)).setRestlen(g[i]);
+        }
     }
     meshLock_.unlock();
 }
+
+void Mesh::setIntrinsicLengthsToCurrentLengths()
+{
+    meshLock_.lock();
+    {
+        for(OMMesh::EdgeIter ei = mesh_->edges_begin(); ei != mesh_->edges_end(); ++ei)
+        {
+            double length = mesh_->calc_edge_length(ei.handle());
+            mesh_->data(ei.handle()).setRestlen(length);
+        }
+    }
+    meshLock_.unlock();
+}
+
+
 
 void Mesh::edgeEndpoints(OMMesh::EdgeHandle eh, OMMesh::Point &pt1, OMMesh::Point &pt2)
 {
