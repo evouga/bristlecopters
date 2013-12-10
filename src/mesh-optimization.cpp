@@ -158,15 +158,13 @@ bool Mesh::findMode(void)
 
     std::cout << "Building matrices" << std::endl;
 
-    MatrixXd left = N;
-    left = params_.rho*params_.h*N.transpose()*M*left;
-    MatrixXd right = N;
-    right = N.transpose()*hessq*right;
+    MatrixXd left = params_.rho*params_.h*M;
+    MatrixXd right = hessq;
 
     std::cout << "Solving for spectrum" << std::endl;
     GeneralizedSelfAdjointEigenSolver<MatrixXd > solver(right, left);
 
-    MatrixXd rawmodes = N*solver.eigenvectors();
+    MatrixXd rawmodes = solver.eigenvectors();
     modeFrequencies_ = solver.eigenvalues();
 
     std::cout << "Done" << std::endl;

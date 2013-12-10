@@ -113,6 +113,7 @@ ProblemParameters MainWindow::getParameters()
     result.curMode = ui->showModelEdit->text().toInt();
     result.animAmplitude = ui->animAmplitudeEdit->text().toDouble();
     result.animSpeed = ui->animSpeedEdit->text().toDouble();
+    result.scale = 1.0;
     return result;
 }
 
