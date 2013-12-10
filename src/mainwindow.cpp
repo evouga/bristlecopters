@@ -97,6 +97,8 @@ void MainWindow::setParameters(ProblemParameters params)
     ui->smoothShadeCheckBox->setChecked(params.smoothShade);
     ui->densityEdit->setText(QString::number(params.rho));    
     ui->showModelEdit->setText(QString::number(params.curMode));
+    ui->animAmplitudeEdit->setText(QString::number(params.animAmplitude));
+    ui->animSpeedEdit->setText(QString::number(params.animSpeed));
 }
 
 ProblemParameters MainWindow::getParameters()
@@ -109,6 +111,8 @@ ProblemParameters MainWindow::getParameters()
     result.smoothShade = ui->smoothShadeCheckBox->isChecked();
     result.rho = ui->densityEdit->text().toDouble();
     result.curMode = ui->showModelEdit->text().toInt();
+    result.animAmplitude = ui->animAmplitudeEdit->text().toDouble();
+    result.animSpeed = ui->animSpeedEdit->text().toDouble();
     return result;
 }
 
@@ -190,6 +194,16 @@ void MainWindow::on_findModeButton_clicked()
 }
 
 void MainWindow::on_showModelEdit_textEdited(const QString &)
+{
+    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
+}
+
+void MainWindow::on_animAmplitudeEdit_textEdited(const QString &)
+{
+    QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
+}
+
+void MainWindow::on_animSpeedEdit_textEdited(const QString &)
 {
     QMetaObject::invokeMethod(cont_, "updateParameters", Q_ARG(ProblemParameters, getParameters()));
 }

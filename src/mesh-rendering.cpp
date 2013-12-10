@@ -51,7 +51,7 @@ void Mesh::render(double t)
 
                 OMMesh::VertexHandle v = fvi.handle();
                 OMMesh::Point pt;
-                pointWithMode(v, pt, params_.curMode, modeAmp(params_.curMode, t));
+                pointWithMode(v, pt, params_.curMode, params_.animAmplitude*modeAmp(params_.curMode, params_.animSpeed*t));
                 OMMesh::Point n;
                 mesh_->calc_vertex_normal_correct(v, n);
                 n.normalize();
@@ -92,7 +92,7 @@ void Mesh::render(double t)
             {
                 glColor3f(0,0,0);
                 OMMesh::Point pt1, pt2;
-                edgeEndpointsWithMode(ei.handle(), pt1, pt2, params_.curMode, modeAmp(params_.curMode, t));
+                edgeEndpointsWithMode(ei.handle(), pt1, pt2, params_.curMode, params_.animAmplitude*modeAmp(params_.curMode, params_.animSpeed*t));
                 glVertex3d(pt1[0], pt1[1], pt1[2]);
                 glVertex3d(pt2[0], pt2[1], pt2[2]);
             }

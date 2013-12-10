@@ -55,6 +55,10 @@ private slots:
 
     void on_showModelEdit_textEdited(const QString &arg1);
 
+    void on_animAmplitudeEdit_textEdited(const QString &arg1);
+
+    void on_animSpeedEdit_textEdited(const QString &arg1);
+
 private:
     void updateGL();
     void saveScreenshot();

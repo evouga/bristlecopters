@@ -31,6 +31,10 @@ struct ProblemParameters : public ElasticParameters
     bool smoothShade;
     int curMode;
 
+    double animAmplitude;
+    double animSpeed;
+
+
     double rho;
 };
 

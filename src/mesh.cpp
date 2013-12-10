@@ -7,11 +7,13 @@ using namespace std;
 
 Mesh::Mesh() : meshLock_(QMutex::Recursive)
 {
-    params_.h = 1;
-    params_.YoungsModulus = 1;
+    params_.h = 0.001;
+    params_.YoungsModulus = 1e7;
     params_.PoissonRatio = 0.5;
-    params_.rho = 1.0;
+    params_.rho = 100;
     params_.scale = 1.0;
+    params_.animAmplitude = 0.1;
+    params_.animSpeed = 1.0;
 
     params_.smoothShade = true;
     params_.showWireframe = true;
