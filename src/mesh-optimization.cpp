@@ -124,27 +124,6 @@ bool Mesh::findMode(void)
     SparseMatrix<double> M(3*numverts(),3*numverts());
     buildExtendedMassMatrix(q, M);
 
-    SparseMatrix<double> N(3*numverts(), numverts());
-    vector<Tr> Ncoeffs;
-    for(int i=0; i<numverts(); i++)
-    {
-        OMMesh::VertexHandle vh = mesh_->vertex_handle(i);
-        OMMesh::Normal n;
-        mesh_->calc_vertex_normal_correct(vh, n);
-        Vector3d normal;
-        for(int j=0; j<3; j++)
-            normal[j] = n[j];
-        double norm =normal.norm();
-        if(fabs(norm) > 1e-8)
-            normal /= norm;
-        else
-            normal.setZero();
-
-        for(int j=0; j<3; j++)
-            Ncoeffs.push_back(Tr(3*i+j, i, normal[j]));
-    }
-    N.setFromTriplets(Ncoeffs.begin(), Ncoeffs.end());
-
     double energyB, energyS;
 
     int derivs = ElasticEnergy::DR_HQ;
@@ -158,14 +137,22 @@ bool Mesh::findMode(void)
 
     std::cout << "Building matrices" << std::endl;
 
-    MatrixXd left = params_.rho*params_.h*M;
-    MatrixXd right = hessq;
+    MatrixXd left = hessq;
+    MatrixXd right = params_.rho*params_.h*M;
+
+    double leftscale = left.trace()/numdofs();
+    double rightscale = right.trace()/numdofs();
+
+    std::cout << "Scales: " << leftscale << " " << rightscale << std::endl;
+
+    left /= leftscale;
+    right /= rightscale;
 
     std::cout << "Solving for spectrum" << std::endl;
-    GeneralizedSelfAdjointEigenSolver<MatrixXd > solver(right, left);
+    GeneralizedSelfAdjointEigenSolver<MatrixXd > solver(left, right);
 
     MatrixXd rawmodes = solver.eigenvectors();
-    modeFrequencies_ = solver.eigenvalues();
+    modeFrequencies_ = solver.eigenvalues()*leftscale/rightscale;
 
     std::cout << "Done" << std::endl;
     for(int i=0; i<modeFrequencies_.size(); i++)

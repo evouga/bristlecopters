@@ -11,6 +11,9 @@ class Controller;
 
 struct MyTraits : public OpenMesh::DefaultTraits
 {
+    typedef OpenMesh::Vec3d Point; // use double-values points
+    typedef OpenMesh::Vec3d Normal; // use double-values points
+
     EdgeTraits
     {
     private:
