@@ -140,6 +140,14 @@ bool Mesh::importOBJ(const char *filename)
         mesh_->request_vertex_normals();
         opt.set(OpenMesh::IO::Options::VertexNormal);
         success = OpenMesh::IO::read_mesh(*mesh_, filename, opt);
+
+        for(int i=0; i<mesh_->n_vertices(); i++)
+        {
+            OMMesh::VertexHandle vh = mesh_->vertex_handle(i);
+            mesh_->point(vh)[2] += 0.01*double(rand())/double(RAND_MAX);
+        }
+
+        setIntrinsicLengthsToCurrentLengths();
         mesh_->update_normals();
         modeFrequencies_.resize(0);
         modes_.resize(0,0);
