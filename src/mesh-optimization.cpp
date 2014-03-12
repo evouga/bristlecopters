@@ -271,3 +271,88 @@ double Mesh::faceArea(const VectorXd &q, int fidx) const
     double A = ((q1-q0).cross(q2-q0)).norm();
     return 0.5*A;
 }
+
+void Mesh::LUderivative(const VectorXd &q, const VectorXd &u, SparseMatrix<double> &DLu)
+{
+    DLu.resize(u.size(), q.size());
+
+    vector<Tr> DLucoeffs;
+    for(int i=0; i<u.size(); i++)
+    {
+        OMMesh::VertexHandle vh = mesh_->vertex_handle(i);
+        if(mesh_->is_boundary(vh))
+            continue;
+
+        for(OMMesh::VertexOHalfedgeIter voh = mesh_->voh_iter(vh); voh; ++voh)
+        {
+            OMMesh::HalfedgeHandle heh = voh.handle();
+            int centidx = i;
+            int oppidx = mesh_->to_vertex_handle(heh).idx();
+            int sideidx[2];
+            sideidx[0] = mesh_->to_vertex_handle(mesh_->next_halfedge_handle(heh)).idx();
+            sideidx[1] = mesh_->to_vertex_handle(mesh_->next_halfedge_handle(mesh_->opposite_halfedge_handle(heh))).idx();
+
+            double diff = u[oppidx] - u[centidx];
+            for(int side=0; side<2; side++)
+            {
+                Vector3d q0 = q.segment<3>(3*sideidx[side]);
+                Vector3d q1 = q.segment<3>(3*centidx);
+                Vector3d q2 = q.segment<3>(3*oppidx);
+
+                double denom = (q1-q0).cross(q2-q0).norm();
+                denom = 2.0*denom*denom*denom;
+                Vector3d num1 = (q1-q0).dot(q1-q0)*(q2-q0).dot(q2-q0)*(q2-q0) - (q1-q0).dot(q2-q0)*(q2-q0).dot(q2-q0)*(q1-q0);
+                Vector3d num2 = (q1-q0).dot(q1-q0)*(q2-q0).dot(q2-q0)*(q1-q0) - (q1-q0).dot(q2-q0)*(q1-q0).dot(q1-q0)*(q2-q0);
+                for(int j=0; j<3; j++)
+                {
+                    DLucoeffs.push_back(Tr(i, 3*centidx+j, diff*num1[j]/denom));
+                    DLucoeffs.push_back(Tr(i, 3*oppidx+j, diff*num2[j]/denom));
+                    DLucoeffs.push_back(Tr(i, 3*sideidx[side]+j, diff*(-num1[j]-num2[j])/denom));
+                }
+            }
+        }
+    }
+
+    DLu.setFromTriplets(DLucoeffs.begin(), DLucoeffs.end());
+}
+
+void Mesh::dirichletL(const VectorXd &q, Eigen::SparseMatrix<double> &L)
+{
+    int numverts = mesh_->n_vertices();
+    L.resize(numverts, numverts);
+    vector<Tr> Lcoeffs;
+    for(int i=0; i<numverts; i++)
+    {
+        OMMesh::VertexHandle vh = mesh_->vertex_handle(i);
+        if(mesh_->is_boundary(vh))
+            continue;
+
+        for(OMMesh::VertexOHalfedgeIter voh = mesh_->voh_iter(vh); voh; ++voh)
+        {
+            OMMesh::HalfedgeHandle heh = voh.handle();
+            int centidx = i;
+            int oppidx = mesh_->to_vertex_handle(heh).idx();
+            int sideidx[2];
+            sideidx[0] = mesh_->to_vertex_handle(mesh_->next_halfedge_handle(heh)).idx();
+            sideidx[1] = mesh_->to_vertex_handle(mesh_->next_halfedge_handle(mesh_->opposite_halfedge_handle(heh))).idx();
+
+            double weight = 0;
+
+            for(int side=0; side<2; side++)
+            {
+                Vector3d q0 = q.segment<3>(3*sideidx[side]);
+                Vector3d q1 = q.segment<3>(3*centidx);
+                Vector3d q2 = q.segment<3>(3*oppidx);
+
+                double denom = 2.0*(q1-q0).cross(q2-q0).norm();
+                double num = (q1-q0).dot(q2-q0);
+                weight += num/denom;
+            }
+
+            Lcoeffs.push_back(Tr(i, oppidx, weight));
+            Lcoeffs.push_back(Tr(i, centidx, -weight));
+        }
+    }
+
+    L.setFromTriplets(Lcoeffs.begin(), Lcoeffs.end());
+}

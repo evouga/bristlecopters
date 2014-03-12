@@ -87,6 +87,9 @@ private:
     double circumcentricDualArea(const Eigen::VectorXd &q, int vidx) const;
     double faceArea(const Eigen::VectorXd &q, int fidx) const;
 
+    void LUderivative(const Eigen::VectorXd &q, const Eigen::VectorXd &u, Eigen::SparseMatrix<double> &DLu);
+    void dirichletL(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &L);
+
     double pointModeValue(OMMesh::VertexHandle vert, int mode);
     double modeAmp(int mode, double time);
     void pointWithMode(OMMesh::VertexHandle vert, OMMesh::Point &pt, int mode, double amp);
