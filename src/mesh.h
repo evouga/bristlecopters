@@ -81,6 +81,9 @@ private:
 
     void edgeEndpoints(OMMesh::EdgeHandle eh, OMMesh::Point &pt1, OMMesh::Point &pt2);
     void edgeEndpointsWithMode(OMMesh::EdgeHandle edge, OMMesh::Point &p1, OMMesh::Point &p2, int mode, double amp);
+    void buildReducedDirichletLaplacian(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &L) const;
+    double cotanWeight(int edgeid, const Eigen::VectorXd &q) const;
+    void buildReducedMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;
     void buildExtendedMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;
     void buildExtendedInvMassMatrix(const Eigen::VectorXd &q, Eigen::SparseMatrix<double> &M) const;    
     double barycentricDualArea(const Eigen::VectorXd &q, int vidx) const;

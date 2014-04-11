@@ -115,29 +115,27 @@ void Mesh::elasticEnergy(const VectorXd &q,
 
 bool Mesh::findMode(void)
 {
-    // Mq'' = HV
-    // Bq = 0
+    vector<int> reducedMap;
+    int curidx = 0;
+    for(int i=0; i<mesh_->n_vertices(); i++)
+    {
+        if(!mesh_->is_boundary(mesh_->vertex_handle(i)))
+            reducedMap.push_back(curidx++);
+        else
+            reducedMap.push_back(-1);
+    }
+
     setIntrinsicLengthsToCurrentLengths();
     VectorXd q(3*numverts());
     VectorXd g(numedges());
     dofsFromGeometry(q,g);
-    SparseMatrix<double> M(3*numverts(),3*numverts());
-    buildExtendedMassMatrix(q, M);
 
-    double energyB, energyS;
+    SparseMatrix<double> M(curidx, curidx);
+    buildReducedMassMatrix(q, M);
+    SparseMatrix<double> L(curidx, curidx);
+    buildReducedDirichletLaplacian(q, L);
 
-    int derivs = ElasticEnergy::DR_HQ;
-
-    std::cout << "Calculating energy hessian" << std::endl;
-
-    SparseMatrix<double> hessq, gradggradq;
-    VectorXd gradq;
-
-    elasticEnergy(q, g, energyB, energyS, gradq, hessq, gradggradq, derivs);
-
-    std::cout << "Building matrices" << std::endl;
-
-    MatrixXd left = hessq;
+    MatrixXd left = -L;
     MatrixXd right = params_.rho*params_.h*M;
 
     double leftscale = left.trace()/numdofs();
@@ -163,7 +161,21 @@ bool Mesh::findMode(void)
             modeFrequencies_[i] = sqrt(modeFrequencies_[i]);
     }
 
-    modes_ = rawmodes;
+    MatrixXd filledmodes(3*mesh_->n_vertices(), rawmodes.cols());
+    filledmodes.setZero();
+
+    for(int i=0; i<rawmodes.cols(); i++)
+    {
+        for(int j=0; j<mesh_->n_vertices(); j++)
+        {
+            if(!mesh_->is_boundary(mesh_->vertex_handle(j)))
+            {
+                filledmodes.coeffRef(3*j+2,i) = rawmodes.coeff(reducedMap[j],i);
+            }
+        }
+    }
+
+    modes_ = filledmodes;
 
     for(int i=0; i<modes_.cols(); i++)
     {
@@ -191,6 +203,32 @@ void Mesh::buildExtendedMassMatrix(const VectorXd &q, Eigen::SparseMatrix<double
         double area = circumcentricDualArea(q, vidx);
         for(int j=0; j<3; j++)
             entries.push_back(Tr(3*vidx+j, 3*vidx+j, area));
+    }
+
+    M.setFromTriplets(entries.begin(), entries.end());
+}
+
+void Mesh::buildReducedMassMatrix(const VectorXd &q, Eigen::SparseMatrix<double> &M) const
+{
+    vector<int> reducedMap;
+    int curidx = 0;
+    for(int i=0; i<mesh_->n_vertices(); i++)
+    {
+        if(!mesh_->is_boundary(mesh_->vertex_handle(i)))
+            reducedMap.push_back(curidx++);
+        else
+            reducedMap.push_back(-1);
+    }
+
+    M.resize(curidx, curidx);
+    vector<Tr> entries;
+    for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
+    {
+        if(mesh_->is_boundary(vi.handle()))
+            continue;
+        int vidx = vi.handle().idx();
+        double area = circumcentricDualArea(q, vidx);
+        entries.push_back(Tr(reducedMap[vidx], reducedMap[vidx], area));
     }
 
     M.setFromTriplets(entries.begin(), entries.end());
@@ -270,4 +308,70 @@ double Mesh::faceArea(const VectorXd &q, int fidx) const
 
     double A = ((q1-q0).cross(q2-q0)).norm();
     return 0.5*A;
+}
+
+void Mesh::buildReducedDirichletLaplacian(const VectorXd &q, Eigen::SparseMatrix<double> &L) const
+{
+    vector<int> reducedMap;
+    int curidx = 0;
+    for(int i=0; i<mesh_->n_vertices(); i++)
+    {
+        if(!mesh_->is_boundary(mesh_->vertex_handle(i)))
+            reducedMap.push_back(curidx++);
+        else
+            reducedMap.push_back(-1);
+    }
+
+    L.resize(curidx, curidx);
+    L.setZero();
+
+
+    vector<Tr> Lcoeffs;
+
+    for(OMMesh::VertexIter vi = mesh_->vertices_begin(); vi != mesh_->vertices_end(); ++vi)
+    {
+        if(mesh_->is_boundary(vi.handle()))
+            continue;
+
+        double totweight = 0;
+        OMMesh::VertexHandle cent = vi.handle();
+        for(OMMesh::VertexOHalfedgeIter voh = mesh_->voh_iter(cent); voh; ++voh)
+        {
+            OMMesh::EdgeHandle eh = mesh_->edge_handle(voh.handle());
+            OMMesh::VertexHandle to = mesh_->to_vertex_handle(voh.handle());
+            double weight = cotanWeight(eh.idx(), q);
+            if(!mesh_->is_boundary(to))
+            {
+                Lcoeffs.push_back(Tr(reducedMap[cent.idx()], reducedMap[to.idx()], weight));
+            }
+            totweight += weight;
+        }
+        Lcoeffs.push_back(Tr(reducedMap[cent.idx()], reducedMap[cent.idx()], -totweight));
+    }
+    L.setFromTriplets(Lcoeffs.begin(), Lcoeffs.end());
+}
+
+double Mesh::cotanWeight(int edgeid, const VectorXd &q) const
+{
+    OMMesh::EdgeHandle eh = mesh_->edge_handle(edgeid);
+    double weight = 0;
+    for(int i=0; i<2; i++)
+    {
+        OMMesh::HalfedgeHandle heh = mesh_->halfedge_handle(eh,i);
+
+        if(mesh_->is_boundary(heh))
+            continue;
+        OMMesh::HalfedgeHandle next = mesh_->next_halfedge_handle(heh);
+
+        Vector3d e1, e2;
+        OMMesh::VertexHandle oppv = mesh_->to_vertex_handle(next);
+        OMMesh::VertexHandle v1 = mesh_->to_vertex_handle(heh);
+        OMMesh::VertexHandle v2 = mesh_->from_vertex_handle(heh);
+        e1 = q.segment<3>(3*v1.idx())-q.segment<3>(3*oppv.idx());
+        e2 = q.segment<3>(3*v2.idx())-q.segment<3>(3*oppv.idx());
+        double cosang = e1.dot(e2);
+        double sinang = (e1.cross(e2)).norm();
+        weight += 0.5*cosang/sinang;
+    }
+    return weight;
 }
